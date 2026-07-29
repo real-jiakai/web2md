@@ -1,0 +1,17 @@
+{
+  "name": "web2md",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["reader", "markdown", "readability"],
+  "author": "",
+  "license": "ISC",
+  "description": "r.jina.ai style service: prepend the prefix to any URL, get AI-ready Markdown back.",
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "jsdom": "^29.1.1",
+    "turndown": "^7.2.4"
+  }
+}

@@ -1,0 +1,12 @@
+services:
+  web2md:
+    build: .
+    image: web2md
+    container_name: web2md
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+    # Firefox is happier with a larger /dev/shm than Docker's 64MB default.
+    shm_size: 512m
+    restart: unless-stopped
