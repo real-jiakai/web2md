@@ -1,6 +1,6 @@
 # web2md
 
-**[English →](README.md)**
+[English](./README.md) | **简体中文**
 
 一个轻量、可自托管的 [r.jina.ai](https://r.jina.ai) 风格 Reader 服务。
 在任意 URL 前加上服务前缀,即可返回干净、AI 可直接使用的

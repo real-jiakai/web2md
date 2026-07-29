@@ -1,6 +1,6 @@
 # web2md
 
-**[简体中文 →](README.zh-CN.md)**
+**English** | [简体中文](./README.zh-CN.md)
 
 A lightweight, self-hosted [r.jina.ai](https://r.jina.ai) style reader service.
 Prepend the service prefix to any URL and get the page back as clean, AI-ready
