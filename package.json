@@ -1,9 +1,10 @@
 {
   "name": "web2md",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js",
+    "test": "node test/smoke-test.js"
   },
   "keywords": ["reader", "markdown", "readability"],
   "author": "",

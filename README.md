@@ -16,6 +16,20 @@ official-account articles included).
 - **Encoding-safe** — jsdom sniffs the charset, so GBK and UTF-8 pages both decode correctly
 - **Docker Compose deployment** — one command, everything included
 
+## Project structure
+
+```
+├── src/
+│   ├── server.js        # HTTP service: fetch, WAF solver, extraction, SPA fallback
+│   └── render.py        # Camoufox (headless Firefox) renderer for JS pages
+├── test/
+│   └── smoke-test.js    # end-to-end smoke test (static + dynamic paths)
+├── Dockerfile           # all-in-one image: Node 22 + Python + Camoufox browser
+├── docker-compose.yml
+├── package.json
+└── start.command        # macOS double-click launcher
+```
+
 ## Quick start (local)
 
 ```bash
@@ -89,7 +103,7 @@ Markdown Content:
 4. **Detect JS shells** — static extraction that fails, returns almost no text
    (<100 chars), or has suspiciously low text density (<600 chars at <5% of
    the HTML) marks the page as a JS-rendered SPA.
-5. **Dynamic fallback** — suspect pages are rendered by `render.py` in
+5. **Dynamic fallback** — suspect pages are rendered by `src/render.py` in
    headless Camoufox (real Firefox engine, executes the page's JS, waits out
    WAF reloads naturally); Readability then runs on the rendered DOM. The
    rendered result wins only when it yields more text, and any static result
@@ -101,8 +115,8 @@ Typical latency: static pages well under 1s; browser-rendered pages ~5–15s.
 ## Test
 
 ```bash
-node smoke-test.js   # boots the server on a scratch port; checks the static
-                     # path, and the Camoufox fallback when .venv is present
+npm test   # boots the server on a scratch port; checks the static
+           # path, and the Camoufox fallback when .venv is present
 ```
 
 ## Notes

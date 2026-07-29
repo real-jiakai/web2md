@@ -221,8 +221,10 @@ async function fetchPage(targetUrl) {
 // Dynamic fallback: render with Camoufox (headless Firefox) via render.py
 // ---------------------------------------------------------------------------
 
+const ROOT_DIR = path.join(__dirname, '..');
+
 function renderWithBrowser(targetUrl) {
-  const python = path.join(__dirname, '.venv', 'bin', 'python');
+  const python = path.join(ROOT_DIR, '.venv', 'bin', 'python');
   if (!fs.existsSync(python)) {
     return Promise.reject(
       new Error(

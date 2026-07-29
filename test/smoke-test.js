@@ -25,10 +25,15 @@ async function convert(target, timeoutMs) {
 }
 
 (async () => {
-  const server = spawn(process.execPath, ['server.js'], {
-    env: { ...process.env, PORT: String(PORT) },
-    stdio: 'ignore',
-  });
+  const ROOT = path.join(__dirname, '..');
+  const server = spawn(
+    process.execPath,
+    [path.join(ROOT, 'src', 'server.js')],
+    {
+      env: { ...process.env, PORT: String(PORT) },
+      stdio: 'ignore',
+    }
+  );
   const stop = () => { try { server.kill(); } catch {} };
   process.on('exit', stop);
 
@@ -53,7 +58,9 @@ async function convert(target, timeoutMs) {
   console.log('static path: ok');
 
   // 2) Dynamic path (only when the Camoufox install is present).
-  const hasBrowser = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python'));
+  const hasBrowser = fs.existsSync(
+    path.join(__dirname, '..', '.venv', 'bin', 'python')
+  );
   if (hasBrowser) {
     const spa = await convert('https://quotes.toscrape.com/js/', 150_000);
     if (!spa.includes('world as we have created it')) {

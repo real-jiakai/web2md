@@ -15,6 +15,20 @@ Markdown——静态网页和 JS 渲染的 SPA 都支持(包括微信公众号�
 - **编码安全** —— jsdom 嗅探字符集,GBK 与 UTF-8 页面都不会乱码
 - **Docker Compose 部署** —— 一条命令,全部依赖打包好
 
+## 项目结构
+
+```
+├── src/
+│   ├── server.js        # HTTP 服务:抓取、WAF 求解、正文提取、SPA 兜底
+│   └── render.py        # Camoufox(无头 Firefox)渲染脚本
+├── test/
+│   └── smoke-test.js    # 端到端冒烟测试(静态 + 动态两条路径)
+├── Dockerfile           # 一体化镜像:Node 22 + Python + Camoufox 浏览器
+├── docker-compose.yml
+├── package.json
+└── start.command        # macOS 双击启动器
+```
+
 ## 本地快速开始
 
 ```bash
@@ -85,7 +99,7 @@ Markdown Content:
    jsdom 嗅探字符集。
 4. **识别 JS 壳** —— 静态提取失败、正文几乎为空(<100 字符)或文本密度
    过低(<600 字符且占 HTML 不到 5%)时,判定为 JS 渲染的 SPA。
-5. **动态兜底** —— 可疑页面交给 `render.py`,用无头 Camoufox(真实
+5. **动态兜底** —— 可疑页面交给 `src/render.py`,用无头 Camoufox(真实
    Firefox 内核,执行页面 JS,自然等过 WAF 重载)渲染后,再对渲染出的
    DOM 跑 Readability。只有渲染结果文本更多时才采用;浏览器失败时仍
    返回静态结果。
@@ -96,8 +110,8 @@ Markdown Content:
 ## 测试
 
 ```bash
-node smoke-test.js   # 在临时端口启动服务;检查静态路径,
-                     # 若已安装 .venv 则一并检查 Camoufox 兜底
+npm test   # 在临时端口启动服务;检查静态路径,
+           # 若已安装 .venv 则一并检查 Camoufox 兜底
 ```
 
 ## 说明

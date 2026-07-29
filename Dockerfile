@@ -22,8 +22,9 @@ RUN python3 -m venv .venv \
     && rm -rf /var/lib/apt/lists/*
 
 # Application.
-COPY server.js render.py smoke-test.js ./
+COPY src/ src/
+COPY test/ test/
 
 ENV PORT=3000
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "src/server.js"]
