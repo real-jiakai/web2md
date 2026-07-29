@@ -79,6 +79,20 @@ docker compose down            # stop
 Change the port mapping in `docker-compose.yml` (`"8080:3000"` to serve on
 port 8080); `PORT` inside the container stays 3000.
 
+### Server requirements (VPS)
+
+| Spec | Minimum | Recommended |
+| --- | --- | --- |
+| CPU | 1 vCPU | 2 vCPU |
+| RAM | 1 GB | 2 GB (4 GB if SPA renders are frequent) |
+| Disk | 10 GB | 20 GB |
+
+The static path is cheap — the heavy part is the headless-Firefox fallback.
+Each SPA render spawns a fresh browser (~200MB RAM and a full CPU core while
+rendering), and the container's shared memory is sized at 512MB. On a 1GB
+machine, add swap so concurrent renders don't OOM; the built image takes ~2GB
+on disk.
+
 ## Usage
 
 **The whole API is one rule: put the target URL after the prefix.**
@@ -160,4 +174,4 @@ non-http(s) target, `502` when the target can't be fetched or read
 
 ## License
 
-[MIT](LICENSE) © [real-jiakai](https://github.com/real-jiakai)
+MIT © real-jiakai

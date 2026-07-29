@@ -76,6 +76,19 @@ docker compose down            # 停止
 修改端口映射请编辑 `docker-compose.yml`(如 `"8080:3000"` 表示对外
 8080 端口);容器内 `PORT` 保持 3000 即可。
 
+### 服务器配置建议(VPS)
+
+| 配置 | 最低 | 推荐 |
+| --- | --- | --- |
+| CPU | 1 核 | 2 核 |
+| 内存 | 1 GB | 2 GB(SPA 渲染频繁建议 4 GB) |
+| 磁盘 | 10 GB | 20 GB |
+
+静态页面开销很小,重的是无头 Firefox 兜底:每次 SPA 渲染都会新起一个
+浏览器(约 200MB 内存,渲染时占满一个核),且容器的共享内存设为
+512MB。1GB 内存的机器建议加 swap 以防并发渲染时 OOM;构建后的镜像约
+占 2GB 磁盘。
+
 ## 使用方法
 
 **整个 API 只有一条规则:把目标 URL 拼在前缀后面。**
@@ -151,4 +164,4 @@ Markdown Content:
 
 ## License
 
-[MIT](LICENSE) © [real-jiakai](https://github.com/real-jiakai)
+MIT © real-jiakai
