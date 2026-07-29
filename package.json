@@ -14,7 +14,7 @@
     "readability"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "r.jina.ai style service: prepend the prefix to any URL, get AI-ready Markdown back.",
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

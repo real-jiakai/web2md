@@ -148,3 +148,7 @@ Markdown Content:
 - 感谢 [Mozilla Readability](https://github.com/mozilla/readability)、
   [Turndown](https://github.com/mixmark-io/turndown) 与
   [Camoufox](https://github.com/daijro/camoufox)。
+
+## License
+
+[MIT](LICENSE) © [real-jiakai](https://github.com/real-jiakai)

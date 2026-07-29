@@ -157,3 +157,7 @@ non-http(s) target, `502` when the target can't be fetched or read
 - [Mozilla Readability](https://github.com/mozilla/readability),
   [Turndown](https://github.com/mixmark-io/turndown) and
   [Camoufox](https://github.com/daijro/camoufox) do the heavy lifting.
+
+## License
+
+[MIT](LICENSE) © [real-jiakai](https://github.com/real-jiakai)
