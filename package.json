@@ -1,12 +1,18 @@
 {
   "name": "web2md",
   "version": "1.0.0",
-  "main": "src/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "test": "node test/smoke-test.js"
+    "build": "tsc",
+    "prestart": "npm run build",
+    "start": "node dist/src/server.js",
+    "test": "npm run build && node dist/test/smoke-test.js"
   },
-  "keywords": ["reader", "markdown", "readability"],
+  "keywords": [
+    "reader",
+    "markdown",
+    "readability"
+  ],
   "author": "",
   "license": "ISC",
   "description": "r.jina.ai style service: prepend the prefix to any URL, get AI-ready Markdown back.",
@@ -14,5 +20,11 @@
     "@mozilla/readability": "^0.6.0",
     "jsdom": "^29.1.1",
     "turndown": "^7.2.4"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^26.1.2",
+    "@types/turndown": "^5.0.6",
+    "typescript": "^7.0.2"
   }
 }

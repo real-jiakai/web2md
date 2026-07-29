@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Node dependencies (cached layer).
+# Node dependencies (cached layer; devDeps included for the TS build).
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Camoufox + browser binary + Firefox system libraries (heavy, cached layer).
 RUN python3 -m venv .venv \
@@ -21,10 +21,12 @@ RUN python3 -m venv .venv \
     && .venv/bin/playwright install-deps firefox \
     && rm -rf /var/lib/apt/lists/*
 
-# Application.
+# Application: build TypeScript, then drop dev dependencies.
+COPY tsconfig.json ./
 COPY src/ src/
 COPY test/ test/
+RUN npm run build && npm prune --omit=dev
 
 ENV PORT=3000
 EXPOSE 3000
-CMD ["node", "src/server.js"]
+CMD ["node", "dist/src/server.js"]

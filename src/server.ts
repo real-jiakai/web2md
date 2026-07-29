@@ -2,7 +2,7 @@
  * web2md — a lightweight r.jina.ai style reader service.
  *
  * Usage:
- *   node server.js            # starts on PORT (default 3000)
+ *   npm start                 # builds to dist/, then listens on PORT (3000)
  *   curl http://localhost:3000/http://example.com/article
  *
  * The service fetches the target page, extracts the main content with
@@ -12,16 +12,20 @@
  * common on Chinese government sites) by evaluating the challenge in a vm
  * sandbox and retrying with the computed cookie. Solved cookies are cached
  * per host so later requests skip the challenge.
+ *
+ * Pages whose static HTML is just a JS shell (SPAs) are re-rendered with
+ * Camoufox (headless Firefox, see src/render.py) and extracted from the
+ * live DOM.
  */
 
-const http = require('node:http');
-const vm = require('node:vm');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { JSDOM, VirtualConsole } = require('jsdom');
-const { Readability } = require('@mozilla/readability');
-const TurndownService = require('turndown');
+import http from 'node:http';
+import vm from 'node:vm';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { JSDOM, VirtualConsole } from 'jsdom';
+import { Readability } from '@mozilla/readability';
+import TurndownService from 'turndown';
 
 const PORT = process.env.PORT || 3000;
 const FETCH_TIMEOUT_MS = 30_000;
@@ -30,6 +34,9 @@ const MAX_CHALLENGE_ATTEMPTS = 10; // the WAF issues a random number of stages
 const COOKIE_TTL_MS = 50 * 60 * 1000; // clearance cookies live ~1h
 const RENDER_TIMEOUT_MS = 90_000; // headless-browser budget per page
 const MIN_STATIC_TEXT = 100; // below this, treat the page as a JS-rendered shell
+
+// This file runs from dist/src/, so the project root is two levels up.
+const ROOT_DIR = path.join(__dirname, '..', '..');
 
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
@@ -45,7 +52,12 @@ const turndown = new TurndownService({
 // Drop noisy elements that Readability sometimes keeps.
 turndown.remove(['script', 'style', 'noscript', 'iframe', 'form', 'button']);
 
-function send(res, status, body, contentType = 'text/plain; charset=utf-8') {
+function send(
+  res: http.ServerResponse,
+  status: number,
+  body: string,
+  contentType = 'text/plain; charset=utf-8'
+): void {
   res.writeHead(status, {
     'Content-Type': contentType,
     'Access-Control-Allow-Origin': '*',
@@ -67,10 +79,15 @@ Response: text/markdown with the page title, source URL, and extracted content.
 // WAF challenge solving
 // ---------------------------------------------------------------------------
 
-/** Per-host cookie jar: host -> { cookies: ["name=value", ...], expiresAt }. */
-const cookieCache = new Map();
+interface CookieEntry {
+  cookies: string[];
+  expiresAt: number;
+}
 
-function getCachedCookies(host) {
+/** Per-host cookie jar: host -> entry. */
+const cookieCache = new Map<string, CookieEntry>();
+
+function getCachedCookies(host: string): string[] {
   const entry = cookieCache.get(host);
   if (!entry) return [];
   if (Date.now() > entry.expiresAt) {
@@ -80,7 +97,7 @@ function getCachedCookies(host) {
   return [...entry.cookies];
 }
 
-function setCachedCookies(host, cookies) {
+function setCachedCookies(host: string, cookies: string[]): void {
   cookieCache.set(host, {
     cookies: [...cookies],
     expiresAt: Date.now() + COOKIE_TTL_MS,
@@ -88,7 +105,7 @@ function setCachedCookies(host, cookies) {
 }
 
 /** Upsert a "name=value" pair into a cookie jar (array of pairs). */
-function upsertCookie(jar, pair) {
+function upsertCookie(jar: string[], pair: string): void {
   const name = pair.split('=')[0];
   const i = jar.findIndex((c) => c.startsWith(`${name}=`));
   if (i >= 0) jar[i] = pair;
@@ -99,23 +116,24 @@ function upsertCookie(jar, pair) {
  * Try to evaluate one script block as a WAF challenge. Returns the computed
  * "__jsl_clearance=..." cookie pair, or null when the script does not yield it.
  */
-function evalChallengeScript(js, targetUrl) {
+function evalChallengeScript(js: string, targetUrl: string): string | null {
   const { pathname, search } = new URL(targetUrl);
   let cookie = '';
   const documentObj = {};
   Object.defineProperty(documentObj, 'cookie', {
-    set: (v) => {
+    set: (v: unknown) => {
       cookie = String(v);
     },
     get: () => cookie,
   });
 
-  const sandbox = {
+  const sandbox: Record<string, unknown> = {
     document: documentObj,
     location: { href: '', pathname, search },
     navigator: { userAgent: USER_AGENT },
     // Some challenges defer work with setTimeout; run it immediately.
-    setTimeout: (fn) => (typeof fn === 'function' ? fn() : undefined),
+    setTimeout: (fn: unknown) =>
+      typeof fn === 'function' ? (fn as () => void)() : undefined,
   };
   sandbox.window = sandbox;
   sandbox.self = sandbox;
@@ -140,7 +158,11 @@ function evalChallengeScript(js, targetUrl) {
  * in plaintext, the light one builds the name by concatenating strings
  * ('j')+('s')+('l')..., so it only shows "document.cookie".
  */
-function solveJslChallenge(html, targetUrl, isChallengeStatus) {
+function solveJslChallenge(
+  html: string,
+  targetUrl: string,
+  isChallengeStatus: boolean
+): string | null {
   const looksLikeChallenge =
     isChallengeStatus ||
     html.includes('__jsl_clearance') ||
@@ -154,11 +176,14 @@ function solveJslChallenge(html, targetUrl, isChallengeStatus) {
   return null;
 }
 
-async function fetchOnce(targetUrl, cookies) {
+async function fetchOnce(
+  targetUrl: string,
+  cookies: string[]
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const headers = {
+    const headers: Record<string, string> = {
       'User-Agent': USER_AGENT,
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -170,7 +195,7 @@ async function fetchOnce(targetUrl, cookies) {
   }
 }
 
-async function fetchPage(targetUrl) {
+async function fetchPage(targetUrl: string): Promise<Buffer> {
   const host = new URL(targetUrl).host;
   const cookies = getCachedCookies(host);
 
@@ -218,12 +243,10 @@ async function fetchPage(targetUrl) {
 }
 
 // ---------------------------------------------------------------------------
-// Dynamic fallback: render with Camoufox (headless Firefox) via render.py
+// Dynamic fallback: render with Camoufox (headless Firefox) via src/render.py
 // ---------------------------------------------------------------------------
 
-const ROOT_DIR = path.join(__dirname, '..');
-
-function renderWithBrowser(targetUrl) {
+function renderWithBrowser(targetUrl: string): Promise<Buffer> {
   const python = path.join(ROOT_DIR, '.venv', 'bin', 'python');
   if (!fs.existsSync(python)) {
     return Promise.reject(
@@ -233,10 +256,11 @@ function renderWithBrowser(targetUrl) {
       )
     );
   }
+  const renderScript = path.join(ROOT_DIR, 'src', 'render.py');
   return new Promise((resolve, reject) => {
     execFile(
       python,
-      [path.join(__dirname, 'render.py'), targetUrl],
+      [renderScript, targetUrl],
       { timeout: RENDER_TIMEOUT_MS, maxBuffer: 32 * 1024 * 1024 },
       (err, stdout, stderr) => {
         if (err) {
@@ -255,7 +279,12 @@ function renderWithBrowser(targetUrl) {
 // HTML -> Markdown
 // ---------------------------------------------------------------------------
 
-function pageToMarkdown(htmlBuffer, targetUrl) {
+interface ExtractionResult {
+  markdown: string;
+  textLength: number;
+}
+
+function pageToMarkdown(htmlBuffer: Buffer, targetUrl: string): ExtractionResult {
   // Silence jsdom's css/script noise; sniff encoding from the buffer.
   const virtualConsole = new VirtualConsole();
   const dom = new JSDOM(htmlBuffer, { url: targetUrl, virtualConsole });
@@ -269,7 +298,7 @@ function pageToMarkdown(htmlBuffer, targetUrl) {
   }
 
   const body = turndown.turndown(article.content);
-  const parts = [];
+  const parts: string[] = [];
   if (article.title) parts.push(`Title: ${article.title.trim()}`);
   parts.push(`URL Source: ${targetUrl}`);
   if (article.byline) parts.push(`Author: ${article.byline.trim()}`);
@@ -287,7 +316,10 @@ function pageToMarkdown(htmlBuffer, targetUrl) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const reqUrl = new URL(
+      req.url || '/',
+      `http://${req.headers.host || 'localhost'}`
+    );
     let target = decodeURIComponent(reqUrl.pathname.slice(1)); // strip leading "/"
 
     if (!target) {
@@ -303,7 +335,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Basic validation; only http/https are fetchable.
-    let parsed;
+    let parsed: URL;
     try {
       parsed = new URL(target);
     } catch {
@@ -316,7 +348,7 @@ const server = http.createServer(async (req, res) => {
     const html = await fetchPage(target);
 
     // Fast path: extract from the static HTML.
-    let result = null;
+    let result: ExtractionResult | null = null;
     try {
       result = pageToMarkdown(html, target);
     } catch {
@@ -335,7 +367,9 @@ const server = http.createServer(async (req, res) => {
     if (suspectShell) {
       console.error(
         `[web2md] static extraction ${
-          result ? `suspect (${textLen} chars, density ${density.toFixed(3)})` : 'failed'
+          result
+            ? `suspect (${textLen} chars, density ${density.toFixed(3)})`
+            : 'failed'
         }; rendering in browser...`
       );
       try {
@@ -346,16 +380,24 @@ const server = http.createServer(async (req, res) => {
         }
       } catch (err) {
         if (!result) throw err; // nothing static to fall back to
-        console.error(`[web2md] browser render failed, serving static result: ${err.message}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[web2md] browser render failed, serving static result: ${msg}`);
       }
     }
 
+    if (!result) {
+      // Unreachable in practice (the fallback either sets result or throws),
+      // but keeps the type checker honest.
+      throw new Error('Could not extract readable content from this page');
+    }
     send(res, 200, result.markdown, 'text/markdown; charset=utf-8');
   } catch (err) {
     const msg =
-      err.name === 'AbortError'
+      err instanceof Error && err.name === 'AbortError'
         ? `Fetch timed out after ${FETCH_TIMEOUT_MS / 1000}s`
-        : err.message;
+        : err instanceof Error
+          ? err.message
+          : String(err);
     send(res, 502, `web2md error: ${msg}`);
   }
 });

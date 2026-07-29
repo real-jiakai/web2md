@@ -1,22 +1,22 @@
 /**
- * Smoke test: boot the server on a scratch port and verify live conversions.
- * Checks the static path always; also checks the Camoufox dynamic fallback
- * when the .venv install is present.
+ * Smoke test: boot the compiled server on a scratch port and verify live
+ * conversions. Checks the static path always; also checks the Camoufox
+ * dynamic fallback when the .venv install is present.
  *
- * Usage: node smoke-test.js
+ * Usage: npm test   (builds first, then runs this file from dist/test/)
  */
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawn } = require('node:child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn, ChildProcess } from 'node:child_process';
 
 const PORT = 3123;
 
-function fail(msg, code = 1) {
+function fail(msg: string, code = 1): never {
   console.error(`SMOKE TEST FAILED: ${msg}`);
   process.exit(code);
 }
 
-async function convert(target, timeoutMs) {
+async function convert(target: string, timeoutMs: number): Promise<string> {
   const res = await fetch(`http://localhost:${PORT}/${target}`, {
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -25,16 +25,23 @@ async function convert(target, timeoutMs) {
 }
 
 (async () => {
-  const ROOT = path.join(__dirname, '..');
-  const server = spawn(
+  // This file runs from dist/test/; the project root is two levels up.
+  const ROOT = path.join(__dirname, '..', '..');
+  const server: ChildProcess = spawn(
     process.execPath,
-    [path.join(ROOT, 'src', 'server.js')],
+    [path.join(ROOT, 'dist', 'src', 'server.js')],
     {
       env: { ...process.env, PORT: String(PORT) },
       stdio: 'ignore',
     }
   );
-  const stop = () => { try { server.kill(); } catch {} };
+  const stop = () => {
+    try {
+      server.kill();
+    } catch {
+      /* already dead */
+    }
+  };
   process.on('exit', stop);
 
   // Wait for the listener to come up.
@@ -58,9 +65,7 @@ async function convert(target, timeoutMs) {
   console.log('static path: ok');
 
   // 2) Dynamic path (only when the Camoufox install is present).
-  const hasBrowser = fs.existsSync(
-    path.join(__dirname, '..', '.venv', 'bin', 'python')
-  );
+  const hasBrowser = fs.existsSync(path.join(ROOT, '.venv', 'bin', 'python'));
   if (hasBrowser) {
     const spa = await convert('https://quotes.toscrape.com/js/', 150_000);
     if (!spa.includes('world as we have created it')) {
@@ -73,4 +78,4 @@ async function convert(target, timeoutMs) {
 
   stop();
   console.log('smoke test passed');
-})().catch((e) => fail(e.message));
+})().catch((e: unknown) => fail(e instanceof Error ? e.message : String(e)));

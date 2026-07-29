@@ -1,5 +1,6 @@
 .git
 node_modules
 .venv
+dist
 .DS_Store
 *.log
